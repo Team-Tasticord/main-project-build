@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import NowPlayingCard from '@/components/feed/NowPlayingCard';
+import NowPlayingList from '@/components/feed/NowPlayingList';
 import FeedCard from '@/components/feed/FeedCard';
 import CreatePostBox from '@/components/feed/CreatePostBox';
 import Chip from '@/components/ui/Chip';
@@ -119,10 +119,8 @@ export default function FeedPage() {
             </div>
           ) : (
             <>
-              {/* 실시간 — 상단 핀 */}
-              {filteredNowPlaying.map((item) => (
-                <NowPlayingCard key={`np-${item.user_id}-${item.kind}`} item={item} />
-              ))}
+              {/* 실시간 — 상단 핀 (단일 타이머는 NowPlayingList 내부) */}
+              <NowPlayingList items={filteredNowPlaying} />
               {/* 추천/포스트 — 하단 */}
               {filteredRecommends.map((activity) => (
                 <FeedCard

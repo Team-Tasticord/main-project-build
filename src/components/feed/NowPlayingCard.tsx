@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Avatar from '@/components/ui/Avatar';
 import PlatformTag from '@/components/ui/PlatformTag';
 import { timeAgo } from '@/lib/utils/helpers';
@@ -8,10 +7,11 @@ import type { NowPlayingItem } from '@/hooks/useNowPlayingFeed';
 
 interface Props {
   item: NowPlayingItem;
+  // 현재 시각(ms). 상위 NowPlayingList 의 단일 타이머에서 주입(카드별 setInterval 제거).
+  nowTs: number;
 }
 
 const LIVE_THRESHOLD_MS = 4 * 60 * 1000; // 4분 이내 = 지금 활동 중
-const TICK_MS = 30 * 1000;
 
 const KIND_LABEL: Record<NowPlayingItem['kind'], string> = {
   music: 'LISTENING NOW',
@@ -33,13 +33,7 @@ const RECENT_LABEL: Record<NowPlayingItem['kind'], string> = {
   game: 'RECENTLY PLAYED',
 };
 
-export default function NowPlayingCard({ item }: Props) {
-  const [nowTs, setNowTs] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowTs(Date.now()), TICK_MS);
-    return () => clearInterval(id);
-  }, []);
-
+export default function NowPlayingCard({ item, nowTs }: Props) {
   const playedAtMs = new Date(item.played_at).getTime();
   const isLive = nowTs - playedAtMs < LIVE_THRESHOLD_MS;
   const nickname = item.profiles?.nickname ?? '사용자';
