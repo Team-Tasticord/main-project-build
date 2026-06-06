@@ -52,29 +52,44 @@ function TimeRangePicker({
   );
 }
 
-export default function WrappedSection() {
+// userId / forceLoading / onLoadingChange:
+//   - userId: 부모(AnalysisPage)가 한 번만 auth.getUser() 로 가져와 prop 으로 내림.
+//             자체 getUser() 호출을 제거해 토큰 검증 라운드트립을 절약.
+//   - forceLoading: 3개 Wrapped 섹션(음악·게임·영화)의 로딩 타이밍이 달라
+//             영화만 늦게 콘텐츠로 바뀌는 시각적 어색함이 있었음. 부모에서
+//             세 섹션의 로딩 상태를 모아, 모두 끝나기 전까지는 forceLoading=true 로
+//             통일된 스켈레톤을 유지시키는 패턴.
+interface WrappedSectionProps {
+  userId: string | null;
+  forceLoading?: boolean;
+  onLoadingChange?: (loading: boolean) => void;
+}
+
+export default function WrappedSection({ userId, forceLoading, onLoadingChange }: WrappedSectionProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [report, setReport] = useState<WrappedReport | null>(null);
   const [hasSpotify, setHasSpotify] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<TimeRange>(DEFAULT_TIME_RANGE);
 
+  // 내부 로딩 상태가 바뀔 때마다 부모에게 알림 (통합 로딩 동기화용)
   useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
+
+  useEffect(() => {
+    if (!userId) return; // 부모가 아직 user 페치 중이면 대기 — 스켈레톤 유지
     async function load() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
 
       const [{ data: existing }, { data: conn }] = await Promise.all([
-        supabase.from('wrapped_reports').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('wrapped_reports').select('*').eq('user_id', userId).maybeSingle(),
         supabase
           .from('platform_connections')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('platform', 'spotify')
           .maybeSingle(),
       ]);
@@ -89,7 +104,7 @@ export default function WrappedSection() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [userId]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -124,9 +139,10 @@ export default function WrappedSection() {
     }
   };
 
-  if (loading) {
+  // 부모에서 forceLoading 으로 강제 스켈레톤 유지하는 경우도 함께 처리
+  if (loading || forceLoading) {
     return (
-      <div className="bg-zinc-900/50 border border-zinc-800/35 rounded-2xl p-6 animate-pulse h-32" />
+      <div className="bg-zinc-900/50 border border-zinc-800/35 rounded-2xl p-6 animate-pulse h-32 mb-6" />
     );
   }
 

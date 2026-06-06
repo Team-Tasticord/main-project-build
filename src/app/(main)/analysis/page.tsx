@@ -15,11 +15,28 @@ export default function AnalysisPage() {
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // 한 번만 auth.getUser() 를 호출하고 userId 를 자식들에게 prop 으로 내려준다.
+  // 기존에는 페이지+3개 자식이 각자 getUser() 를 호출해 총 4번의 토큰 검증
+  // 라운드트립이 발생했음 → 1번으로 축소.
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Wrapped 3개 섹션(음악·게임·영화)의 통합 로딩 상태
+  //
+  // 문제: 음악·게임은 Supabase 직접 조회로 빠른데, 영화는 /api/netflix/history 라는
+  //       REST 라운드트립으로 느려서 영화만 늦게 콘텐츠로 바뀌어 보였음.
+  // 해결: 세 섹션 모두의 내부 로딩이 끝날 때까지 forceLoading=true 로 스켈레톤 유지 →
+  //       가장 늦은 섹션이 끝나는 순간 셋이 동시에 콘텐츠로 전환된다.
+  const [musicLoading, setMusicLoading] = useState(true);
+  const [gameLoading, setGameLoading] = useState(true);
+  const [movieLoading, setMovieLoading] = useState(true);
+  const wrappedLoading = musicLoading || gameLoading || movieLoading;
+
   useEffect(() => {
     async function fetchReport() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setUserId(user.id);
 
       const { data } = await supabase
         .from('taste_reports')
@@ -40,9 +57,9 @@ export default function AnalysisPage() {
     <div className="max-w-3xl mx-auto p-8 animate-fade-up">
       <h2 className="text-2xl font-bold mb-8">취향 분석</h2>
 
-      <WrappedSection />
-      <WrappedGamesSection />
-      <WrappedMoviesSection />
+      <WrappedSection userId={userId} forceLoading={wrappedLoading} onLoadingChange={setMusicLoading} />
+      <WrappedGamesSection userId={userId} forceLoading={wrappedLoading} onLoadingChange={setGameLoading} />
+      <WrappedMoviesSection userId={userId} forceLoading={wrappedLoading} onLoadingChange={setMovieLoading} />
 
       {loading ? (
         <div className="space-y-4">

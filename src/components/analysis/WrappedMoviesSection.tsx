@@ -11,28 +11,37 @@ import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/ToastProvider';
 import type { WrappedMoviesReport } from '@/lib/wrapped/movie-types';
 
-export default function WrappedMoviesSection() {
+// WrappedSection 와 동일한 통합 로딩 + userId prop 패턴 — AnalysisPage 의 주석 참고
+interface WrappedMoviesSectionProps {
+  userId: string | null;
+  forceLoading?: boolean;
+  onLoadingChange?: (loading: boolean) => void;
+}
+
+export default function WrappedMoviesSection({ userId, forceLoading, onLoadingChange }: WrappedMoviesSectionProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [report, setReport] = useState<WrappedMoviesReport | null>(null);
   const [hasNetflix, setHasNetflix] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
+
+  useEffect(() => {
+    if (!userId) return;
     async function load() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
 
       // netflix_history는 앱 전역에서 admin API(/api/netflix/history)로만 읽음.
-      // 브라우저 클라이언트 직접 조회는 RLS 때문에 0건으로 잡혀 hasNetflix가 항상 false였음
-      // → my-taste 페이지와 동일하게 admin API의 totalCount 사용.
+      // 브라우저 클라이언트 직접 조회는 RLS 때문에 0건으로 잡혀 hasNetflix가 항상 false였음.
+      // 단, 여기서는 "기록이 있냐 없냐"만 필요하므로 ?count_only=true 모드로
+      // 전체 페이로드를 받지 않고 head 카운트만 받는다 — 가장 느린 호출을 가볍게.
       const [{ data: existing }, netflixRes] = await Promise.all([
-        supabase.from('wrapped_movies_reports').select('*').eq('user_id', user.id).maybeSingle(),
-        fetch('/api/netflix/history'),
+        supabase.from('wrapped_movies_reports').select('*').eq('user_id', userId).maybeSingle(),
+        fetch('/api/netflix/history?count_only=true'),
       ]);
 
       let netflixCount = 0;
@@ -50,7 +59,7 @@ export default function WrappedMoviesSection() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [userId]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -81,7 +90,7 @@ export default function WrappedMoviesSection() {
     }
   };
 
-  if (loading) {
+  if (loading || forceLoading) {
     return (
       <div className="bg-zinc-900/50 border border-zinc-800/35 rounded-2xl p-6 animate-pulse h-32 mb-6" />
     );

@@ -11,28 +11,36 @@ import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/ToastProvider';
 import type { WrappedGamesReport } from '@/lib/wrapped/game-types';
 
-export default function WrappedGamesSection() {
+// WrappedSection 와 동일한 통합 로딩 + userId prop 패턴 — AnalysisPage 의 주석 참고
+interface WrappedGamesSectionProps {
+  userId: string | null;
+  forceLoading?: boolean;
+  onLoadingChange?: (loading: boolean) => void;
+}
+
+export default function WrappedGamesSection({ userId, forceLoading, onLoadingChange }: WrappedGamesSectionProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [report, setReport] = useState<WrappedGamesReport | null>(null);
   const [hasSteam, setHasSteam] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
+
+  useEffect(() => {
+    if (!userId) return;
     async function load() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
 
       const [{ data: existing }, { data: conn }] = await Promise.all([
-        supabase.from('wrapped_games_reports').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('wrapped_games_reports').select('*').eq('user_id', userId).maybeSingle(),
         supabase
           .from('platform_connections')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('platform', 'steam')
           .maybeSingle(),
       ]);
@@ -42,7 +50,7 @@ export default function WrappedGamesSection() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [userId]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -73,7 +81,7 @@ export default function WrappedGamesSection() {
     }
   };
 
-  if (loading) {
+  if (loading || forceLoading) {
     return (
       <div className="bg-zinc-900/50 border border-zinc-800/35 rounded-2xl p-6 animate-pulse h-32 mb-6" />
     );

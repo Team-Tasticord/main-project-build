@@ -26,6 +26,43 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
 
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // 회원 탈퇴
+  const handleDeleteAccount = async () => {
+    if (!currentUser) return;
+
+    // 1단계: 일반 확인
+    const ok = confirm(
+      '정말 회원 탈퇴를 진행하시겠습니까?\n\n' +
+      '연동된 플랫폼, 친구 관계, 활동 기록, 취향 레포트 등\n' +
+      '모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.'
+    );
+    if (!ok) return;
+
+    // 2단계: 닉네임 직접 입력 (오작동 방지용 더블 체크)
+    const input = prompt(`확인을 위해 닉네임 "${currentUser.nickname}"을(를) 정확히 입력해주세요`);
+    if (input === null) return; // 취소 클릭
+    if (input !== currentUser.nickname) {
+      alert('닉네임이 일치하지 않아 취소되었습니다');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/auth/delete-account', { method: 'POST' });
+      if (res.ok) {
+        alert('회원 탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다.');
+        window.location.href = '/auth/login';
+      } else {
+        alert('회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        setDeleting(false);
+      }
+    } catch {
+      alert('회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setDeleting(false);
+    }
+  };
 
   // 닉네임 인라인 편집 (카카오에서 닉네임을 못 받아왔거나 바꾸고 싶을 때)
   const [editingNick, setEditingNick] = useState(false);
@@ -288,6 +325,15 @@ export default function ProfilePage() {
       </div>
 
       <button onClick={signOut} className="w-full mt-8 py-3 text-sm text-zinc-500 hover:text-red-400 transition border border-zinc-800 rounded-xl hover:border-red-900/50">로그아웃</button>
+
+      {/* 회원 탈퇴: 위험한 작업이므로 더 어둡고 작게 표시 */}
+      <button
+        onClick={handleDeleteAccount}
+        disabled={deleting}
+        className="w-full mt-3 py-3 text-xs text-zinc-600 hover:text-red-500 transition border border-zinc-900 rounded-xl hover:border-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {deleting ? '탈퇴 처리 중...' : '회원 탈퇴'}
+      </button>
     </div>
   );
 }

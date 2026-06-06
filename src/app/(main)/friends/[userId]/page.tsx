@@ -6,29 +6,42 @@ import { ChevronLeft, MessageCircle, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Profile } from '@/types';
 import { getAvatarColor } from '@/lib/utils/helpers';
-import TasteCompare from '@/components/compare/TasteCompare';
-
+import TasteWrapped from '@/components/compare/TasteWrapped';
+import { useTasteProfileSync } from '@/hooks/useTasteProfileSync';
 
 export default function FriendDetailPage() {
   const router = useRouter();
   const params = useParams();
+  // 친구 비교 페이지 진입 시에만 본인 taste_profiles 갱신 ping (TTL 48h)
+  // 스키마 마이그레이션이 필요한 첫 진입에는 ready=false 로 잠시 대기
+  const { ready: profileReady } = useTasteProfileSync();
   const [friend, setFriend] = useState<Profile | null>(null);
+  const [me, setMe] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
-    async function fetchFriend() {
+    async function fetchAll() {
       const supabase = createClient();
-      const { data } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const friendQ = supabase
         .from('profiles')
         .select('*')
         .eq('id', params.userId as string)
         .single();
 
-      setFriend(data as Profile);
+      const meQ = user
+        ? supabase.from('profiles').select('*').eq('id', user.id).single()
+        : Promise.resolve({ data: null });
+
+      const [{ data: friendData }, { data: meData }] = await Promise.all([friendQ, meQ]);
+
+      setFriend(friendData as Profile);
+      setMe(meData as Profile | null);
       setLoading(false);
     }
-    fetchFriend();
+    fetchAll();
   }, [params.userId]);
 
   if (loading) {
@@ -64,6 +77,7 @@ export default function FriendDetailPage() {
 
       <div className="text-center mb-8">
         {friend.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={friend.avatar_url} alt={friend.nickname} className="w-20 h-20 rounded-full mx-auto mb-3 object-cover" />
         ) : (
           <div className={`w-20 h-20 rounded-full ${colorClass} flex items-center justify-center font-bold text-2xl mx-auto mb-3`}>
@@ -104,12 +118,21 @@ export default function FriendDetailPage() {
         </button>
       </div>
 
-      <div className="mt-4">
-        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">
-          {friend.nickname}님과 나의 취향 비교
-        </h3>
-        <TasteCompare friendId={friend.id} friendName={friend.nickname} />
-      </div>
+      {profileReady ? (
+        <TasteWrapped
+          friendId={friend.id}
+          friendName={friend.nickname}
+          friendAvatarUrl={friend.avatar_url ?? null}
+          meName={me?.nickname ?? '나'}
+          meAvatarUrl={me?.avatar_url ?? null}
+        />
+      ) : (
+        <div className="text-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-zinc-500 mx-auto mb-3" />
+          <div className="text-sm text-zinc-400">취향 데이터를 준비 중...</div>
+          <div className="text-xs text-zinc-600 mt-1">Spotify · Steam · Netflix 정보를 모으고 있어요</div>
+        </div>
+      )}
     </div>
   );
 }
