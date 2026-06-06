@@ -266,7 +266,8 @@ function MessagesPageInner() {
     const { data } = await supabase
       .from('friendships')
       .select('friend:profiles!friendships_friend_id_fkey(*)')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .eq('status', 'accepted'); // P-001: accepted 친구만 플레이리스트 멤버 후보
 
     const friends = ((data || []) as unknown as Array<{ friend: Profile | null }>)
       .map((row) => row.friend)

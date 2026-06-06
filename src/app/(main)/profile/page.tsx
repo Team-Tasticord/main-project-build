@@ -140,7 +140,8 @@ export default function ProfilePage() {
       const { count } = await supabase
         .from('friendships')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .eq('status', 'accepted'); // P-001: pending 요청은 친구 수에서 제외
       setFriendCount(count || 0);
 
       setLoading(false);
