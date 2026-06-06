@@ -27,15 +27,21 @@ const FEED_REFRESH_MS = 60 * 1000; // 60초마다 피드 새로고침 (다른 �
 export function useNowPlayingFeed() {
   const [items, setItems] = useState<NowPlayingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/now-playing/feed');
-      if (!res.ok) return;
+      if (!res.ok) {
+        setError(true);
+        return;
+      }
       const data = (await res.json()) as { items: NowPlayingItem[] };
       setItems(data.items ?? []);
+      setError(false);
     } catch (e) {
       console.error('[NowPlayingFeed] load failed:', e);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -60,5 +66,5 @@ export function useNowPlayingFeed() {
     };
   }, [load]);
 
-  return { items, loading, refresh: load };
+  return { items, loading, error, refresh: load };
 }

@@ -14,8 +14,8 @@ export default function FeedPage() {
   const [activeFilter, setActiveFilter] = useState<string>('전체');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-  const { items: nowPlayingItems, loading: loadingNow, refresh: refreshNow } = useNowPlayingFeed();
-  const { items: recommendItems, loading: loadingRec, refresh: refreshRec } = useRecommendFeed();
+  const { items: nowPlayingItems, loading: loadingNow, error: errorNow, refresh: refreshNow } = useNowPlayingFeed();
+  const { items: recommendItems, loading: loadingRec, error: errorRec, refresh: refreshRec } = useRecommendFeed();
 
   // 본인 user id 1회 조회 — 삭제 메뉴 노출 여부 판단용
   useEffect(() => {
@@ -105,6 +105,19 @@ export default function FeedPage() {
                   <div className="w-full h-32 bg-zinc-800 rounded-xl" />
                 </div>
               ))}
+            </div>
+          ) : (errorNow || errorRec) && filteredNowPlaying.length === 0 && filteredRecommends.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="text-zinc-300 text-lg font-medium">피드를 불러오지 못했어요</div>
+              <p className="text-zinc-500 text-sm mt-2 mb-5">
+                네트워크 연결을 확인한 뒤 다시 시도해 주세요.
+              </p>
+              <button
+                onClick={() => { refreshNow(); refreshRec(); }}
+                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-sm font-semibold transition"
+              >
+                다시 시도
+              </button>
             </div>
           ) : filteredNowPlaying.length === 0 && filteredRecommends.length === 0 ? (
             <div className="text-center py-20">

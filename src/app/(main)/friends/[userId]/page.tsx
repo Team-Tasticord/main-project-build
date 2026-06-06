@@ -41,7 +41,8 @@ export default function FriendDetailPage() {
       setMe(meData as Profile | null);
       setLoading(false);
     }
-    fetchAll();
+    // 네트워크 등으로 throw 시 무한 스켈레톤 대신 로딩 해제(→ "친구를 찾을 수 없습니다")
+    fetchAll().catch(() => setLoading(false));
   }, [params.userId]);
 
   if (loading) {

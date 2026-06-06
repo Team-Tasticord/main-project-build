@@ -12,15 +12,21 @@ const REFRESH_MS = 60 * 1000;
 export function useRecommendFeed() {
   const [items, setItems] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/feed/recommendations');
-      if (!res.ok) return;
+      if (!res.ok) {
+        setError(true);
+        return;
+      }
       const data = (await res.json()) as { items: Activity[] };
       setItems(data.items ?? []);
+      setError(false);
     } catch (e) {
       console.error('[RecommendFeed] load failed:', e);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -41,5 +47,5 @@ export function useRecommendFeed() {
     };
   }, [load]);
 
-  return { items, loading, refresh: load };
+  return { items, loading, error, refresh: load };
 }

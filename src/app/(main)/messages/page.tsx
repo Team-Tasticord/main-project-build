@@ -59,6 +59,7 @@ function MessagesPageInner() {
   // 대화 탭 상태
   const [chatRooms, setChatRooms] = useState<ChatRoomItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chatError, setChatError] = useState(false);
 
   // 플레이리스트 탭 상태
   const [playlists, setPlaylists] = useState<PlaylistListItem[]>([]);
@@ -85,11 +86,17 @@ function MessagesPageInner() {
       if (!user) return;
 
       // [쿼리 1] 내 멤버십 (room_id + last_read_at) — 조인 한 번에 끝
-      const { data: myMemberDetails } = await supabase
+      const { data: myMemberDetails, error: memErr } = await supabase
         .from('chat_members')
         .select('room_id, last_read_at')
         .eq('user_id', user.id);
 
+      if (memErr) {
+        // 로드 실패 → 빈상태("대화가 없습니다")로 뭉개지 말고 에러로 구분
+        setChatError(true);
+        setLoading(false);
+        return;
+      }
       if (!myMemberDetails || myMemberDetails.length === 0) {
         setLoading(false);
         return;
@@ -347,6 +354,18 @@ function MessagesPageInner() {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : chatError ? (
+            <div className="bg-zinc-900/50 border border-zinc-800/35 rounded-2xl p-8 text-center">
+              <MessageCircle className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
+              <p className="text-zinc-300 font-medium">대화를 불러오지 못했어요</p>
+              <p className="text-zinc-500 text-sm mt-1 mb-4">잠시 후 다시 시도해 주세요.</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-sm font-semibold transition"
+              >
+                다시 시도
+              </button>
             </div>
           ) : chatRooms.length === 0 ? (
             <div className="bg-zinc-900/50 border border-zinc-800/35 rounded-2xl p-8 text-center">
