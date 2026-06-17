@@ -30,7 +30,8 @@ export async function GET() {
     const { data: friendships } = await supabase
       .from('friendships')
       .select('friend_id')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .eq('status', 'accepted'); // P-001: pending 제외, accepted 친구만 노출
 
     const friendIds = (friendships ?? []).map((f) => f.friend_id);
     const visibleUserIds = [user.id, ...friendIds];

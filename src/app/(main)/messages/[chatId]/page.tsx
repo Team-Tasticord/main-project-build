@@ -20,6 +20,7 @@ export default function ChatRoomPage() {
   // 로컬 상태 메시지에 client_id 를 얹어서 관리한다.
   const [messages, setMessages] = useState<Array<ChatMessage & { client_id?: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [otherUser, setOtherUser] = useState<Profile | null>(null);
   const [otherLastRead, setOtherLastRead] = useState<string | null>(null);
@@ -90,7 +91,10 @@ export default function ChatRoomPage() {
       if (readError) console.error('[Chat] 읽음 처리 실패:', readError);
     }
 
-    init();
+    init().catch(() => {
+      setLoadError(true);
+      setLoading(false);
+    });
   }, [roomId, supabase]);
 
   // Realtime: 메시지 수신 + 상대방 읽음 상태 감지
@@ -366,6 +370,37 @@ export default function ChatRoomPage() {
       )
     );
   };
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center p-8 text-center">
+        <p className="text-zinc-300 font-medium mb-1">대화를 불러오지 못했어요</p>
+        <p className="text-sm text-zinc-500 mb-5">네트워크 연결을 확인한 뒤 다시 시도해 주세요.</p>
+        <button
+          onClick={() => router.push('/messages')}
+          className="px-5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold transition"
+        >
+          목록으로
+        </button>
+      </div>
+    );
+  }
+
+  // 참여하지 않은 대화방(RLS로 멤버 0건 → 상대 정보 없음) 접근 차단
+  if (!loading && !otherUser) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center p-8 text-center">
+        <p className="text-zinc-300 font-medium mb-1">접근할 수 없는 대화입니다</p>
+        <p className="text-sm text-zinc-500 mb-5">참여 중인 대화만 볼 수 있어요.</p>
+        <button
+          onClick={() => router.push('/messages')}
+          className="px-5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold transition"
+        >
+          목록으로
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">

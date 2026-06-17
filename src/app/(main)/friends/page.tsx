@@ -32,6 +32,7 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<FriendWithProfile[]>([]);
   const [requests, setRequests] = useState<IncomingRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -52,26 +53,33 @@ export default function FriendsPage() {
 
   // ── 데이터 fetch ─────────────────────────────────────────
   const fetchAll = useCallback(async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    setLoadError(false);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const [friendsRes, reqRes] = await Promise.all([
-      supabase
-        .from('friendships')
-        .select('friend_id, friend:profiles!friendships_friend_id_fkey(*)')
-        .eq('user_id', user.id)
-        .eq('status', 'accepted'),
-      fetch('/api/friends/requests'),
-    ]);
+      const [friendsRes, reqRes] = await Promise.all([
+        supabase
+          .from('friendships')
+          .select('friend_id, friend:profiles!friendships_friend_id_fkey(*)')
+          .eq('user_id', user.id)
+          .eq('status', 'accepted'),
+        fetch('/api/friends/requests'),
+      ]);
 
-    setFriends((friendsRes.data || []) as unknown as FriendWithProfile[]);
+      setFriends((friendsRes.data || []) as unknown as FriendWithProfile[]);
 
-    if (reqRes.ok) {
-      const json = (await reqRes.json()) as { items: IncomingRequest[] };
-      setRequests(json.items ?? []);
+      if (reqRes.ok) {
+        const json = (await reqRes.json()) as { items: IncomingRequest[] };
+        setRequests(json.items ?? []);
+      }
+    } catch {
+      // 네트워크 등으로 목록 로드 실패 → 무한 스켈레톤 대신 에러 상태
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -125,7 +133,11 @@ export default function FriendsPage() {
         if (res.ok) {
           const json = (await res.json()) as { items: SearchResultItem[] };
           setSearchResults(json.items ?? []);
+        } else {
+          showToast('검색 중 문제가 발생했어요');
         }
+      } catch {
+        showToast('검색 중 문제가 발생했어요');
       } finally {
         setSearching(false);
       }
@@ -359,6 +371,17 @@ export default function FriendsPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : loadError ? (
+        <div className="bg-zinc-900/50 border border-zinc-800/35 rounded-2xl p-8 text-center">
+          <p className="text-zinc-300 font-medium mb-1">친구 목록을 불러오지 못했어요</p>
+          <p className="text-sm text-zinc-500 mb-5">네트워크 연결을 확인한 뒤 다시 시도해 주세요.</p>
+          <button
+            onClick={() => { setLoading(true); fetchAll(); }}
+            className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-sm font-semibold transition"
+          >
+            다시 시도
+          </button>
         </div>
       ) : filteredFriends.length === 0 ? (
         <div className="text-center py-16">

@@ -435,7 +435,8 @@ export default function PlaylistDetailPage() {
     const { data } = await supabase
       .from('friendships')
       .select('friend:profiles!friendships_friend_id_fkey(*)')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .eq('status', 'accepted'); // P-001: accepted 친구만 초대 대상
 
     const existingIds = new Set(members.map((m) => m.user_id));
     const available: Profile[] = ((data || []) as unknown as Array<{ friend: Profile }>)
